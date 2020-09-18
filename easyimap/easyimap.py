@@ -96,14 +96,19 @@ class MailObj(object):
     def body(self):
         for part in self._message.walk():
             maintype = part.get_content_maintype()
-            if maintype == 'application':
-                raise Exception("unsupported body content type %s" % (part.get_content_type()))
             if maintype != 'multipart' and not part.get_filename():
                 return _decode_body(part)
             if maintype == 'multipart':
-                for p in part.get_payload():
-                    if p.get_content_maintype() == 'text':
-                        return _decode_body(p)
+                try:
+                    for p in part.get_payload():
+                        if p.get_content_maintype() == 'text':
+                            return _decode_body(p)
+                except:
+                    for p in part.get_body():
+                        if p.get_content_maintype() == 'text':
+                            return _decode_body(p)
+            if maintype == 'application':
+                raise Exception("unsupported body content type %s" % (part.get_content_type()))
         raise Exception("orz... something... something happened.")
 
     @property
@@ -232,12 +237,18 @@ def _decode_body(part):
     charset = str(part.get_content_charset())
 
     try:
-        payload = part.get_payload(decode=True)
-    except Exception as e:
         payload = part.get_body()
+    except AttributeError:
+        payload = part.get_payload(decode=True)
 
     try:
-        body = unicode(payload, charset) if charset else part.get_payload()
+        if charset:
+            body = unicode(payload, charset)
+        else:
+            try:
+                body = part.get_body()
+            except AttributeError:
+                body = part.get_payload()
     except:
         encoding = chardet.detect(payload)
         if encoding.get('encoding'):
