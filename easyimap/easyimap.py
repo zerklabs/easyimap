@@ -96,6 +96,8 @@ class MailObj(object):
     def body(self):
         for part in self._message.walk():
             maintype = part.get_content_maintype()
+            if maintype == 'application':
+                raise Exception("unsupported body content type %s" % (part.get_content_type()))
             if maintype != 'multipart' and not part.get_filename():
                 return _decode_body(part)
             if maintype == 'multipart':
@@ -228,7 +230,12 @@ def _decode_header(data):
 
 def _decode_body(part):
     charset = str(part.get_content_charset())
-    payload = part.get_payload(decode=True)
+
+    try:
+        payload = part.get_payload(decode=True)
+    except Exception as e:
+        payload = part.get_body()
+
     try:
         body = unicode(payload, charset) if charset else part.get_payload()
     except:
